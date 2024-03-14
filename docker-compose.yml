@@ -1,0 +1,56 @@
+version: "3.5"
+
+services:
+  app:
+    build:
+      context: ./
+      dockerfile: ./docker/runner/Dockerfile
+      args:
+        TARGET_DIR: /app
+        GOBIN: /app
+    volumes:
+      - .:/go/src/worker # Service
+    ports:
+      - "10100:10001"
+    environment:
+      TARGET_DIR: /app
+      GOBIN: /app
+    env_file:
+      - .env
+    networks:
+      - default
+
+  rabbit:
+    image: rabbitmq:3-management-alpine
+    restart: on-failure
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - default
+
+  vault:
+    image: vault:1.9.9
+    restart: on-failure
+    volumes:
+      - ./docker/vault:/vault/config
+      - ./docker/vault:/vault/policies
+    ports:
+      - "8200:8200"
+    environment:
+      - VAULT_ADDR=http://0.0.0.0:8200
+      - VAULT_API_ADDR=http://0.0.0.0:8200
+      - VAULT_ADDRESS=http://0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    command: vault server -config=/vault/config/vault.json
+
+  consul:
+    image: consul:1.13.3
+    volumes:
+      - ./consul/config:/consul/config
+    ports:
+      - "8500:8500"
+      - "8600:8600/tcp"
+      - "8600:8600/udp"
+    restart: on-failure
